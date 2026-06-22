@@ -1,49 +1,126 @@
-# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+# =========================
+# Dependencies
+# =========================
+node_modules/
+.pnpm-store/
 
-# compiled output
-dist
-tmp
-out-tsc
+# =========================
+# Build Output
+# =========================
+dist/
+build/
+out/
+coverage/
+.tmp/
+tmp/
+.cache/
+
+# TypeScript
 *.tsbuildinfo
-.expo
-.expo-shared
 
-# dependencies
-node_modules
+# =========================
+# Environment Variables
+# =========================
+.env
+.env.*
+!.env.example
 
-# IDEs and editors
-/.idea
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
+# =========================
+# Database Files
+# =========================
+db-data/
+*.db
+*.sqlite
+*.sqlite3
 
-# IDE - VSCode
+# PostgreSQL dumps/backups
+*.sql
+*.dump
+*.backup
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+# IDE - VS Code
+# =========================
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# misc
-/.sass-cache
-/connect.lock
-/coverage
-/libpeerconnection.log
-npm-debug.log
-yarn-error.log
-testem.log
-/typings
+# =========================
+# JetBrains
+# =========================
+.idea/
+*.iml
 
-# System Files
+# =========================
+# OS Files
+# =========================
 .DS_Store
 Thumbs.db
+desktop.ini
 
-.cursor/rules/nx-rules.mdc
-.github/instructions/nx.instructions.md
-
+# =========================
 # Replit
+# =========================
 .cache/
 .local/
+.replit
+.replitignore
+
+# =========================
+# Next / Vite / React
+# =========================
+.vite/
+vite.config.ts.timestamp-*
+*.local
+
+# =========================
+# Testing
+# =========================
+.nyc_output/
+playwright-report/
+test-results/
+
+# =========================
+# Docker
+# =========================
+.docker/
+docker-compose.override.yml
+
+# =========================
+# Secrets & Certificates
+# =========================
+*.pem
+*.key
+*.crt
+*.p12
+
+# =========================
+# Cursor / AI Tools
+# =========================
+.cursor/
+.cursor-cache/
+
+# =========================
+# Misc
+# =========================
+.sass-cache/
+connect.lock
+typings/
+
+# =========================
+# Project Specific
+# =========================
+db-data/
+attached_assets/
