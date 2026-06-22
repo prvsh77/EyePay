@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "codegen": "orval --config ./orval.config.ts && pnpm -w run typecheck:libs"
+    "codegen": "orval --config ./orval.config.ts && node -e \"const pm = process.env.npm_execpath && process.env.npm_execpath.includes('pnpm') ? 'pnpm' : 'npm'; require('child_process').execSync(pm === 'pnpm' ? 'pnpm -w run typecheck:libs' : 'npm run typecheck:libs --prefix ../..', {stdio: 'inherit'})\""
   },
   "devDependencies": {
     "orval": "^8.9.1"

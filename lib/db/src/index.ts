@@ -1,8 +1,19 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "./schema";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const { Pool } = pg;
+
+// Pre-load environment variables from workspace root .env file
+try {
+  const dirname = path.dirname(fileURLToPath(import.meta.url));
+  dotenv.config({ path: path.resolve(dirname, "../../../.env") });
+} catch (e) {
+  // Ignored
+}
 
 if (!process.env.DATABASE_URL) {
   throw new Error(

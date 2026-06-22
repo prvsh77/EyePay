@@ -1,3 +1,5 @@
+import "./env";
+import { join } from "path";
 import app from "./app";
 import { logger } from "./lib/logger";
 
