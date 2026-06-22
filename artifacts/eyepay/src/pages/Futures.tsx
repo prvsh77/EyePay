@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Shield, Zap, Monitor, BarChart2, Bot, Users, TrendingUp, BookOpen } from "lucide-react";
+import { Shield, Zap, Monitor, BarChart2, Bot, Users, TrendingUp, BookOpen, Headphones } from "lucide-react";
 
 const ticker = [
   { symbol: "BTCUSDT", type: "Perpetual", change: "-0.25%", up: false, price: "65,534.40" },
