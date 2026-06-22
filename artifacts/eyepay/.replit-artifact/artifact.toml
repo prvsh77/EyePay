@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "EyePay"
+version = "1.0.0"
+id = "artifacts/eyepay"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23082
+
+[services.development]
+run = "pnpm --filter @workspace/eyepay run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/eyepay", "run", "build" ]
+publicDir = "artifacts/eyepay/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23082"
+BASE_PATH = "/"
