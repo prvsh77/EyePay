@@ -71,12 +71,11 @@ Thumbs.db
 desktop.ini
 
 # =========================
-# Replit
+# Local workspace files
 # =========================
 .cache/
 .local/
-.replit
-.replitignore
+
 
 # =========================
 # Next / Vite / React
