@@ -64,7 +64,8 @@ export interface AuthResponse {
   user: User;
   wallet?: Wallet;
 }
-
+const API_BASE =
+  import.meta.env.VITE_API_URL || "http://localhost:5000";
 async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -79,7 +80,7 @@ async function request<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(path, {
+  const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
   });
