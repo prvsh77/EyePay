@@ -34,7 +34,7 @@
 
 ---
 
-# 🚀 Overview
+#  Overview
 
 EyePay is a modern fintech platform built for secure global remittances, digital wallet management, fraud detection, and intelligent financial insights.
 
@@ -44,7 +44,7 @@ Built with a production-ready architecture using React, Express, PostgreSQL, Neo
 
 ---
 
-# ✨ Features
+#  Features
 
 | Feature | Description |
 |----------|-------------|
@@ -86,7 +86,7 @@ Built with a production-ready architecture using React, Express, PostgreSQL, Neo
 
 ---
 
-# 📸 Product Preview
+#  Product Preview
 
 <p align="center">
   <img src="docs/screenshots/dashboard.png" width="90%" alt="EyePay Dashboard">
@@ -94,7 +94,7 @@ Built with a production-ready architecture using React, Express, PostgreSQL, Neo
 
 ---
 
-# 🧠 Tech Stack
+#  Tech Stack
 
 ## Frontend
 
@@ -277,7 +277,7 @@ https://github.com/prvsh77
 
 ---
 
-# ⭐ Support
+#  Support
 
 If you found this project useful, consider giving it a star.
 
