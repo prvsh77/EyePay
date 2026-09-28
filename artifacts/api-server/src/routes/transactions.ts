@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db, wallets, transactions, recipients, fraudAlerts } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
 import { analyzeTransaction } from "../lib/fraudService";
 
@@ -19,7 +19,7 @@ const transferSchema = z.object({
 router.get("/", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
     const userId = req.userId!;
-    
+
     // Get user's wallet first
     const [wallet] = await db.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
     if (!wallet) {
@@ -66,7 +66,7 @@ router.post("/transfer", requireAuth, async (req: AuthenticatedRequest, res, nex
         .from(recipients)
         .where(and(eq(recipients.id, recipientId), eq(recipients.userId, userId)))
         .limit(1);
-      
+
       if (!recipient) {
         throw new Error("Recipient not found or unauthorized");
       }
@@ -77,17 +77,17 @@ router.post("/transfer", requireAuth, async (req: AuthenticatedRequest, res, nex
         throw new Error("Wallet not found");
       }
 
-      // 3. Verify balance
-      const currentBalance = parseFloat(txWallet.balance);
-      if (currentBalance < amount) {
+      // 3-4. Deduct amount via an atomic, exact-decimal conditional update:
+      // only succeeds if the locked balance still covers the transfer. No
+      // JS float parsing or comparison of the balance is involved.
+      const [debitedWallet] = await tx.update(wallets)
+        .set({ balance: sql`${wallets.balance} - ${amount.toFixed(2)}::numeric` })
+        .where(and(eq(wallets.id, txWallet.id), sql`${wallets.balance} >= ${amount.toFixed(2)}::numeric`))
+        .returning();
+
+      if (!debitedWallet) {
         throw new Error("Insufficient funds");
       }
-
-      // 4. Deduct amount
-      const newBalance = (currentBalance - amount).toFixed(2);
-      await tx.update(wallets)
-        .set({ balance: newBalance })
-        .where(eq(wallets.id, txWallet.id));
 
       const status = analysis.isFlagged ? "pending" : "completed";
 

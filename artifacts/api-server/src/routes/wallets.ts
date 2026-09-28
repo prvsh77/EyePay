@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db, wallets, transactions } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
 
 const router = Router();
@@ -16,7 +16,7 @@ router.get("/", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
     const userId = req.userId!;
     let [wallet] = await db.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
-    
+
     // Auto-create wallet if it doesn't exist
     if (!wallet) {
       [wallet] = await db.insert(wallets).values({
@@ -25,7 +25,7 @@ router.get("/", requireAuth, async (req: AuthenticatedRequest, res, next) => {
         currency: "USD",
       }).returning();
     }
-    
+
     res.json(wallet);
   } catch (err) {
     next(err);
@@ -51,12 +51,11 @@ router.post("/deposit", requireAuth, async (req: AuthenticatedRequest, res, next
         }).returning();
       }
 
-      const currentBalance = parseFloat(wallet.balance);
-      const newBalance = (currentBalance + amount).toFixed(2);
-
-      // Update wallet balance
+      // Let Postgres do exact decimal arithmetic on the numeric column
+      // instead of parseFloat'ing the balance in JS, which can drift over
+      // many deposits/withdrawals/transfers.
       const [updatedWallet] = await tx.update(wallets)
-        .set({ balance: newBalance })
+        .set({ balance: sql`${wallets.balance} + ${amount.toFixed(2)}::numeric` })
         .where(eq(wallets.id, wallet.id))
         .returning();
 
@@ -94,18 +93,17 @@ router.post("/withdraw", requireAuth, async (req: AuthenticatedRequest, res, nex
         throw new Error("Wallet not found");
       }
 
-      const currentBalance = parseFloat(wallet.balance);
-      if (currentBalance < amount) {
+      // Atomic, exact-decimal conditional update: only succeeds if the
+      // locked balance still covers the withdrawal. No JS float parsing or
+      // comparison of the balance is involved.
+      const [updatedWallet] = await tx.update(wallets)
+        .set({ balance: sql`${wallets.balance} - ${amount.toFixed(2)}::numeric` })
+        .where(and(eq(wallets.id, wallet.id), sql`${wallets.balance} >= ${amount.toFixed(2)}::numeric`))
+        .returning();
+
+      if (!updatedWallet) {
         throw new Error("Insufficient funds");
       }
-
-      const newBalance = (currentBalance - amount).toFixed(2);
-
-      // Update wallet balance
-      const [updatedWallet] = await tx.update(wallets)
-        .set({ balance: newBalance })
-        .where(eq(wallets.id, wallet.id))
-        .returning();
 
       // Log transaction
       await tx.insert(transactions).values({
