@@ -2,8 +2,8 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
-import { db, users, wallets } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, users, wallets, recipients } from "@workspace/db";
+import { eq, and, isNull } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
 import { JWT_SECRET } from "../env";
 
@@ -48,6 +48,12 @@ router.post("/register", async (req, res, next) => {
         balance: "0.00",
         currency: "USD",
       }).returning();
+
+      // Backfill: recipients other users already saved under this email now
+      // link to the new account, so future transfers to them credit this wallet.
+      await tx.update(recipients)
+        .set({ linkedUserId: newUser.id })
+        .where(and(eq(recipients.email, email), isNull(recipients.linkedUserId)));
 
       return { user: newUser, wallet: newWallet };
     });

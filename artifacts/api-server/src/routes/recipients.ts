@@ -1,10 +1,16 @@
 import { Router } from "express";
 import { z } from "zod";
-import { db, recipients } from "@workspace/db";
+import { db, recipients, users } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
 
 const router = Router();
+
+/** If the recipient's email belongs to a registered EyePay user, return that user's id. */
+async function findLinkedUserId(email: string): Promise<number | null> {
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+  return user?.id ?? null;
+}
 
 const recipientSchema = z.object({
   name: z.string().min(2),
@@ -34,6 +40,7 @@ router.post("/", requireAuth, async (req: AuthenticatedRequest, res, next) => {
       name,
       email,
       walletAddress,
+      linkedUserId: await findLinkedUserId(email),
     }).returning();
 
     res.status(201).json(newRecipient);
@@ -65,6 +72,8 @@ router.put("/:id", requireAuth, async (req: AuthenticatedRequest, res, next) => 
       name,
       email,
       walletAddress,
+      // Re-resolve on every update so an email change can't leave a stale link.
+      linkedUserId: await findLinkedUserId(email),
     }).where(eq(recipients.id, recipientId)).returning();
 
     res.json(updated);
