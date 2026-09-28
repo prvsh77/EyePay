@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, decimal, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, decimal, integer, boolean, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
@@ -24,6 +24,9 @@ export const recipients = pgTable("recipients", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   walletAddress: text("wallet_address").notNull(),
+  // Set when the recipient's email matches a registered EyePay user; transfers to a
+  // linked recipient credit that user's wallet. Null = external/unlinked recipient.
+  linkedUserId: integer("linked_user_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -38,6 +41,11 @@ export const transactions = pgTable("transactions", {
   recipientId: integer("recipient_id").references(() => recipients.id, { onDelete: "set null" }),
   riskScore: integer("risk_score").default(0).notNull(),
   destinationCountry: text("destination_country").default("US").notNull(),
+  // On a 'receive' row: the id of the sender's 'send' row it mirrors.
+  relatedTransactionId: integer("related_transaction_id").references((): AnyPgColumn => transactions.id, { onDelete: "set null" }),
+  // On a 'send' row: the EyePay user to credit, snapshotted from the recipient's
+  // linked_user_id at initiation so a later recipient deletion can't lose it.
+  creditUserId: integer("credit_user_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
