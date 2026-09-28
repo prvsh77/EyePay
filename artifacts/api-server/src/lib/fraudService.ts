@@ -1,7 +1,6 @@
 import { db, transactions, recipients, fraudAlerts } from "@workspace/db";
 import { eq, and, gte, sql } from "drizzle-orm";
-
-const HIGH_RISK_COUNTRIES = ["KP", "IR", "SY", "RU"];
+import { isHighRiskCountry } from "./countries";
 
 export interface FraudAnalysisResult {
   riskScore: number;
@@ -78,7 +77,7 @@ export async function analyzeTransaction(params: {
 
   // 4. Country Risk Check
   const upperCountry = (destinationCountry || "US").toUpperCase();
-  if (HIGH_RISK_COUNTRIES.includes(upperCountry)) {
+  if (isHighRiskCountry(upperCountry)) {
     score += 40;
     reasons.push(`High-risk destination country (${upperCountry})`);
   }

@@ -24,8 +24,8 @@ export function getCountryName(code: string): string {
 
 /**
  * Countries treated as high-risk destinations for compliance/health-score
- * purposes. Kept separate from `fraudService`'s own high-risk list, which
- * feeds a different (per-transaction) risk calculation.
+ * purposes and for per-transaction fraud scoring (fraudService). Single
+ * source of truth for both.
  */
 export const HIGH_RISK_COUNTRIES = ["KP", "IR", "SY", "RU"];
 
