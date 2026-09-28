@@ -35,6 +35,7 @@ db-data/
 
 # PostgreSQL dumps/backups
 *.sql
+!lib/db/migrations/**/*.sql
 *.dump
 *.backup
 

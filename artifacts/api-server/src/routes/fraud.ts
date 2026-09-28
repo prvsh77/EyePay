@@ -2,11 +2,12 @@ import { Router } from "express";
 import { db, fraudAlerts, transactions, wallets, users } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
+import { requireAdmin } from "../middlewares/requireAdmin";
 
 const router = Router();
 
 // GET /api/admin/fraud-alerts - Lists all flagged fraud alerts
-router.get("/fraud-alerts", requireAuth, async (req: AuthenticatedRequest, res, next) => {
+router.get("/fraud-alerts", requireAuth, requireAdmin, async (req: AuthenticatedRequest, res, next) => {
   try {
     const alerts = await db.select({
       id: fraudAlerts.id,
@@ -43,7 +44,7 @@ router.get("/fraud-alerts", requireAuth, async (req: AuthenticatedRequest, res, 
 });
 
 // POST /api/admin/fraud-alerts/:id/action - Approve or reject a flagged transaction
-router.post("/fraud-alerts/:id/action", requireAuth, async (req: AuthenticatedRequest, res, next) => {
+router.post("/fraud-alerts/:id/action", requireAuth, requireAdmin, async (req: AuthenticatedRequest, res, next) => {
   try {
     const alertId = parseInt(req.params.id as string);
     const { action } = req.body; // 'approve' | 'reject'

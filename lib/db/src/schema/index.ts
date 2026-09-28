@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, decimal, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, decimal, integer, boolean } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
@@ -6,6 +6,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
+  isAdmin: boolean("is_admin").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
