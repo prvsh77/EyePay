@@ -1,7 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "eyepay_super_secret_key_123456";
+import { JWT_SECRET } from "../env";
 
 export interface AuthenticatedRequest extends Request {
   userId?: number;

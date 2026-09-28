@@ -5,9 +5,9 @@ import { z } from "zod";
 import { db, users, wallets } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
+import { JWT_SECRET } from "../env";
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || "eyepay_super_secret_key_123456";
 
 const registerSchema = z.object({
   email: z.string().email(),
