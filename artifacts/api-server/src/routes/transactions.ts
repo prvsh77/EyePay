@@ -72,7 +72,7 @@ router.post("/transfer", requireAuth, async (req: AuthenticatedRequest, res, nex
       }
 
       // 2. Fetch user's wallet again to lock and check balance
-      const [txWallet] = await tx.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
+      const [txWallet] = await tx.select().from(wallets).where(eq(wallets.userId, userId)).for("update").limit(1);
       if (!txWallet) {
         throw new Error("Wallet not found");
       }

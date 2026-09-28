@@ -39,8 +39,10 @@ router.post("/deposit", requireAuth, async (req: AuthenticatedRequest, res, next
     const { amount, currency } = fundingSchema.parse(req.body);
 
     const result = await db.transaction(async (tx) => {
-      let [wallet] = await tx.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
-      
+      // Lock the wallet row for the duration of the transaction so concurrent
+      // deposits/withdrawals/transfers can't read a stale balance.
+      let [wallet] = await tx.select().from(wallets).where(eq(wallets.userId, userId)).for("update").limit(1);
+
       if (!wallet) {
         [wallet] = await tx.insert(wallets).values({
           userId,
@@ -84,8 +86,10 @@ router.post("/withdraw", requireAuth, async (req: AuthenticatedRequest, res, nex
     const { amount, currency } = fundingSchema.parse(req.body);
 
     const result = await db.transaction(async (tx) => {
-      const [wallet] = await tx.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
-      
+      // Lock the wallet row for the duration of the transaction so concurrent
+      // deposits/withdrawals/transfers can't read a stale balance.
+      const [wallet] = await tx.select().from(wallets).where(eq(wallets.userId, userId)).for("update").limit(1);
+
       if (!wallet) {
         throw new Error("Wallet not found");
       }

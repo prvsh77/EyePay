@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, fraudAlerts, transactions, wallets, users } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
 
 const router = Router();
@@ -97,22 +97,24 @@ router.post("/fraud-alerts/:id/action", requireAuth, async (req: AuthenticatedRe
           .set({ status: "rejected" })
           .where(eq(fraudAlerts.id, alert.id));
 
-        // Refund the amount to the sender's wallet balance
+        // Refund the amount to the sender's wallet balance.
+        // Lock the wallet row for the duration of the transaction so
+        // concurrent deposits/withdrawals/transfers can't read a stale
+        // balance (matches the pattern in wallets.ts / transactions.ts).
         const [wallet] = await tx.select()
           .from(wallets)
           .where(eq(wallets.id, transaction.walletId))
+          .for("update")
           .limit(1);
 
         if (!wallet) {
           throw new Error("Sender's wallet not found");
         }
 
-        const currentBalance = parseFloat(wallet.balance);
-        const refundAmount = parseFloat(transaction.amount);
-        const newBalance = (currentBalance + refundAmount).toFixed(2);
-
+        // Let Postgres do exact decimal arithmetic on the numeric column
+        // instead of parseFloat'ing the balance and refund amount in JS.
         await tx.update(wallets)
-          .set({ balance: newBalance })
+          .set({ balance: sql`${wallets.balance} + ${transaction.amount}::numeric` })
           .where(eq(wallets.id, wallet.id));
       }
 
