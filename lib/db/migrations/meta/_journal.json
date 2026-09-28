@@ -29,6 +29,13 @@
       "when": 1790626693293,
       "tag": "0003_recipient_links_and_received_transfers",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790627511483,
+      "tag": "0004_baseline_copilot_conversations",
+      "breakpoints": true
     }
   ]
 }
