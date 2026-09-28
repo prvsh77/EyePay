@@ -1,4 +1,5 @@
 import { logger } from "../lib/logger";
+import { getCountryName } from "../lib/countries";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -107,25 +108,6 @@ export async function generateChatResponse(messages: ChatMessage[], dbContext: a
   }
 }
 
-function getCountryFullName(code: string): string {
-  const map: Record<string, string> = {
-    US: "United States",
-    KE: "Kenya",
-    GB: "United Kingdom",
-    DE: "Germany",
-    IN: "India",
-    JP: "Japan",
-    FR: "France",
-    CA: "Canada",
-    AU: "Australia",
-    KP: "North Korea",
-    IR: "Iran",
-    SY: "Syria",
-    RU: "Russia",
-  };
-  return map[code.toUpperCase()] || code;
-}
-
 function generateSimulationResponse(query: string, context: any): string {
   const q = query.toLowerCase();
 
@@ -151,7 +133,7 @@ function generateSimulationResponse(query: string, context: any): string {
     const highest = context.countryDistribution?.[0];
     if (highest) {
       const pct = Math.round((highest.volume / (context.totalVolume || 1)) * 100);
-      return `You haven't sent transfers to Kenya. However, your top transacted country is **${getCountryFullName(highest.country)}** receiving **$${highest.volume.toLocaleString(undefined, { minimumFractionDigits: 2 })}** (**${pct}%** of total).`;
+      return `You haven't sent transfers to Kenya. However, your top transacted country is **${getCountryName(highest.country)}** receiving **$${highest.volume.toLocaleString(undefined, { minimumFractionDigits: 2 })}** (**${pct}%** of total).`;
     }
     return "No international transfers have been logged in your account.";
   }

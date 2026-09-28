@@ -2,27 +2,10 @@ import { Router } from "express";
 import { db, wallets, transactions, recipients, fraudAlerts } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
+import { getCountryName, isHighRiskCountry } from "../lib/countries";
+import { computeHealthScore } from "../lib/healthScore";
 
 const router = Router();
-
-function getCountryName(code: string): string {
-  const map: Record<string, string> = {
-    US: "United States",
-    KE: "Kenya",
-    GB: "United Kingdom",
-    DE: "Germany",
-    IN: "India",
-    JP: "Japan",
-    FR: "France",
-    CA: "Canada",
-    AU: "Australia",
-    KP: "North Korea",
-    IR: "Iran",
-    SY: "Syria",
-    RU: "Russia",
-  };
-  return map[code.toUpperCase()] || code;
-}
 
 router.get("/", requireAuth, async (req: AuthenticatedRequest, res, next) => {
   try {
@@ -172,7 +155,7 @@ router.get("/", requireAuth, async (req: AuthenticatedRequest, res, next) => {
         title: "Transfer Distribution",
         description: `${getCountryName(topCountry)} receives ${Math.round(ratio)}% of your transfers.`,
         metric: `${Math.round(ratio)}%`,
-        impact: topCountry === "KP" || topCountry === "IR" || topCountry === "SY" || topCountry === "RU" ? "negative" : "neutral",
+        impact: isHighRiskCountry(topCountry) ? "negative" : "neutral",
       });
     }
 
@@ -306,9 +289,7 @@ router.get("/", requireAuth, async (req: AuthenticatedRequest, res, next) => {
     }
 
     // Destination country risks
-    const hasSanctionedCountry = Object.keys(countryCounts).some(c => 
-      c === "KP" || c === "IR" || c === "SY" || c === "RU"
-    );
+    const hasSanctionedCountry = Object.keys(countryCounts).some(isHighRiskCountry);
     if (hasSanctionedCountry) {
       recommendations.push({
         title: "Enhanced Due Diligence Required",
@@ -318,17 +299,12 @@ router.get("/", requireAuth, async (req: AuthenticatedRequest, res, next) => {
     }
 
     // Calculate AI Security & Health Score (Base 100)
-    let score = 100;
-    // Deduct average risk score factor
-    score -= avgRiskThis * 0.4;
-    // Deduct high risk transactions penalty
-    if (hasHighRiskTxs) score -= 15;
-    // Deduct pending alerts penalty
-    if (pendingAlerts.length > 0) score -= 20;
-    // Deduct sanctioned country penalty
-    if (hasSanctionedCountry) score -= 15;
-    // Clamp score
-    score = Math.max(12, Math.min(100, Math.round(score)));
+    const score = computeHealthScore({
+      avgRiskScore: avgRiskThis,
+      hasHighRiskTransactions: hasHighRiskTxs,
+      pendingAlertsCount: pendingAlerts.length,
+      hasHighRiskCountryActivity: hasSanctionedCountry,
+    });
 
     res.json({
       healthScore: score,

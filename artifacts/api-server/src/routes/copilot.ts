@@ -3,6 +3,8 @@ import { db, wallets, transactions, recipients, fraudAlerts, users, copilotConve
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
 import { generateChatResponse, type ChatMessage } from "../services/aiProvider";
+import { isHighRiskCountry } from "../lib/countries";
+import { computeHealthScore } from "../lib/healthScore";
 
 const router = Router();
 
@@ -121,16 +123,14 @@ router.post("/chat", requireAuth, async (req: AuthenticatedRequest, res, next) =
     const pendingAlertsCount = alerts.filter(a => a.status === "pending").length;
 
     // Security score calculation
-    let healthScore = 100;
     const avgRisk = Number(avgRiskRow?.avgScore || 0);
-    healthScore -= avgRisk * 0.4;
-    if (allTxs.some(t => t.riskScore >= 70)) healthScore -= 15;
-    if (pendingAlertsCount > 0) healthScore -= 20;
-    const hasSanctioned = countryDistribution.some(c => 
-      c.country === "KP" || c.country === "IR" || c.country === "SY" || c.country === "RU"
-    );
-    if (hasSanctioned) healthScore -= 15;
-    healthScore = Math.max(12, Math.min(100, Math.round(healthScore)));
+    const hasSanctioned = countryDistribution.some(c => isHighRiskCountry(c.country));
+    const healthScore = computeHealthScore({
+      avgRiskScore: avgRisk,
+      hasHighRiskTransactions: allTxs.some(t => t.riskScore >= 70),
+      pendingAlertsCount,
+      hasHighRiskCountryActivity: hasSanctioned,
+    });
 
     // Top recipient calculation
     const recipientCounts: Record<number, number> = {};
