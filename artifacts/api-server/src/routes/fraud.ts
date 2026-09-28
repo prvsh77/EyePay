@@ -3,6 +3,7 @@ import { db, fraudAlerts, transactions, wallets, users } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
 import { requireAdmin } from "../middlewares/requireAdmin";
+import { creditLinkedRecipient } from "../lib/transfers";
 
 const router = Router();
 
@@ -88,6 +89,14 @@ router.post("/fraud-alerts/:id/action", requireAuth, requireAdmin, async (req: A
         await tx.update(fraudAlerts)
           .set({ status: "approved" })
           .where(eq(fraudAlerts.id, alert.id));
+
+        // The sender was debited at initiation; the linked recipient is only
+        // credited now that the transfer is approved. credit_user_id was
+        // snapshotted at initiation, so this works even if the recipient row
+        // has since been deleted.
+        if (transaction.creditUserId !== null) {
+          await creditLinkedRecipient(tx, transaction, transaction.creditUserId);
+        }
       } else {
         // Mark transaction as failed and alert as rejected
         await tx.update(transactions)
@@ -134,7 +143,8 @@ router.post("/fraud-alerts/:id/action", requireAuth, requireAdmin, async (req: A
       (err.message === "Fraud alert not found" ||
         err.message === "Fraud alert is already resolved" ||
         err.message === "Associated transaction not found" ||
-        err.message === "Sender's wallet not found")
+        err.message === "Sender's wallet not found" ||
+        err.message === "Recipient wallet not found")
     ) {
       res.status(400).json({ error: err.message });
       return;
