@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db, wallets, transactions, recipients, fraudAlerts } from "@workspace/db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
 import { analyzeTransaction } from "../lib/fraudService";
+import { creditLinkedRecipient } from "../lib/transfers";
 
 const router = Router();
 
@@ -70,10 +71,33 @@ router.post("/transfer", requireAuth, async (req: AuthenticatedRequest, res, nex
       if (!recipient) {
         throw new Error("Recipient not found or unauthorized");
       }
+      if (recipient.linkedUserId === userId) {
+        throw new Error("Cannot send to your own account");
+      }
 
-      // 2. Fetch user's wallet again to lock and check balance
-      const [txWallet] = await tx.select().from(wallets).where(eq(wallets.userId, userId)).for("update").limit(1);
-      if (!txWallet) {
+      // 2. Resolve the receiving wallet if the recipient is a linked EyePay user,
+      // then lock every wallet involved FOR UPDATE in a single statement ordered
+      // by id. Consistent lock order means two users transferring to each other
+      // at the same time can't deadlock.
+      let receiverWalletId: number | null = null;
+      if (recipient.linkedUserId !== null) {
+        const [receiverWallet] = await tx.select({ id: wallets.id })
+          .from(wallets)
+          .where(eq(wallets.userId, recipient.linkedUserId))
+          .limit(1);
+        if (!receiverWallet) {
+          throw new Error("Recipient wallet not found");
+        }
+        receiverWalletId = receiverWallet.id;
+      }
+
+      const walletIdsToLock = receiverWalletId === null ? [wallet.id] : [wallet.id, receiverWalletId];
+      const lockedWallets = await tx.select({ id: wallets.id })
+        .from(wallets)
+        .where(inArray(wallets.id, walletIdsToLock))
+        .orderBy(wallets.id)
+        .for("update");
+      if (!lockedWallets.some((w) => w.id === wallet.id)) {
         throw new Error("Wallet not found");
       }
 
@@ -82,7 +106,7 @@ router.post("/transfer", requireAuth, async (req: AuthenticatedRequest, res, nex
       // JS float parsing or comparison of the balance is involved.
       const [debitedWallet] = await tx.update(wallets)
         .set({ balance: sql`${wallets.balance} - ${amount.toFixed(2)}::numeric` })
-        .where(and(eq(wallets.id, txWallet.id), sql`${wallets.balance} >= ${amount.toFixed(2)}::numeric`))
+        .where(and(eq(wallets.id, wallet.id), sql`${wallets.balance} >= ${amount.toFixed(2)}::numeric`))
         .returning();
 
       if (!debitedWallet) {
@@ -93,7 +117,7 @@ router.post("/transfer", requireAuth, async (req: AuthenticatedRequest, res, nex
 
       // 5. Create transaction log
       const [transaction] = await tx.insert(transactions).values({
-        walletId: txWallet.id,
+        walletId: wallet.id,
         type: "send",
         amount: amount.toFixed(2),
         currency,
@@ -102,6 +126,8 @@ router.post("/transfer", requireAuth, async (req: AuthenticatedRequest, res, nex
         recipientId: recipient.id,
         riskScore: analysis.riskScore,
         destinationCountry: destinationCountry.toUpperCase(),
+        // Snapshot who gets credited; approval reads this, not the recipient row.
+        creditUserId: recipient.linkedUserId,
       }).returning();
 
       // 6. If transaction is flagged as high-risk, insert into fraudAlerts
@@ -114,6 +140,13 @@ router.post("/transfer", requireAuth, async (req: AuthenticatedRequest, res, nex
         });
       }
 
+      // 7. Credit a linked recipient's wallet now, but only for clean transfers.
+      // Flagged transfers stay pending and are credited on admin approval
+      // (see fraud.ts); a rejected one only refunds the sender.
+      if (!analysis.isFlagged && transaction.creditUserId !== null) {
+        await creditLinkedRecipient(tx, transaction, transaction.creditUserId);
+      }
+
       return transaction;
     });
 
@@ -122,7 +155,9 @@ router.post("/transfer", requireAuth, async (req: AuthenticatedRequest, res, nex
     if (
       err instanceof Error &&
       (err.message === "Recipient not found or unauthorized" ||
+        err.message === "Cannot send to your own account" ||
         err.message === "Wallet not found" ||
+        err.message === "Recipient wallet not found" ||
         err.message === "Insufficient funds")
     ) {
       res.status(400).json({ error: err.message });
